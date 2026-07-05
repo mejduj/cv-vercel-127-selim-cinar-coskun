@@ -173,28 +173,34 @@ def generate_docx(isim: str, meslek_alani: str, analiz: dict) -> bytes:
 
 def generate_csv(rows: list[dict]) -> bytes:
     """Analiz geçmişini CSV olarak döner."""
-    try:
-        import pandas as pd
-    except ImportError:
-        raise ImportError("pandas paketi yüklü değil.")
+    import csv
 
-    records = []
+    # StringIO ile yazıp byte'a çevireceğiz
+    output = io.StringIO()
+    # Excel'in Türkçe karakterleri düzgün tanıması için UTF-8 BOM ekliyoruz
+    output.write('\ufeff')
+
+    writer = csv.writer(output, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
+    # Sütun Başlıkları
+    writer.writerow([
+        "ID", "İsim", "Tarih", "Meslek Alanı", "AI Modeli", "Puan",
+        "Güçlü Yönler", "Eksikler", "Önerilen Meslekler", "Öneriler"
+    ])
+
     for row in rows:
         analiz = row.get("analiz_sonucu", {})
-        records.append({
-            "ID": row.get("id"),
-            "İsim": row.get("isim"),
-            "Tarih": row.get("tarih"),
-            "Meslek Alanı": row.get("meslek_alani"),
-            "AI Modeli": row.get("ai_model"),
-            "Puan": row.get("puan"),
-            "Güçlü Yönler": "; ".join(analiz.get("guclu_yonler", [])),
-            "Eksikler": "; ".join(analiz.get("eksikler", [])),
-            "Önerilen Meslekler": "; ".join(analiz.get("onerilen_meslekler", [])),
-            "Öneriler": "; ".join(analiz.get("oneriler", [])),
-        })
+        writer.writerow([
+            row.get("id"),
+            row.get("isim"),
+            row.get("tarih"),
+            row.get("meslek_alani"),
+            row.get("ai_model"),
+            row.get("puan"),
+            "; ".join(analiz.get("guclu_yonler", [])),
+            "; ".join(analiz.get("eksikler", [])),
+            "; ".join(analiz.get("onerilen_meslekler", [])),
+            "; ".join(analiz.get("oneriler", []))
+        ])
 
-    df = pd.DataFrame(records)
-    buf = io.BytesIO()
-    df.to_csv(buf, index=False, encoding="utf-8-sig")
-    return buf.getvalue()
+    return output.getvalue().encode('utf-8')
